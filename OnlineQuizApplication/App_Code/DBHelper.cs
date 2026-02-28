@@ -10,7 +10,18 @@ using System.Data.SqlClient;
 public class DBHelper
 {
     // Get connection string from Web.config
-    private static string connectionString = ConfigurationManager.ConnectionStrings["QuizDBConnection"].ConnectionString;
+    private static string connectionString = ConfigurationManager.ConnectionStrings["QuizDBConnection"]?.ConnectionString;
+
+    /// <summary>
+    /// Validate connection string exists
+    /// </summary>
+    private static void ValidateConnectionString()
+    {
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new Exception("Database connection string 'QuizDBConnection' not found in Web.config");
+        }
+    }
 
     /// <summary>
     /// Get SQL Connection
@@ -18,6 +29,7 @@ public class DBHelper
     /// <returns>SqlConnection object</returns>
     public static SqlConnection GetConnection()
     {
+        ValidateConnectionString();
         return new SqlConnection(connectionString);
     }
 
@@ -36,6 +48,7 @@ public class DBHelper
             {
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
+                    cmd.CommandTimeout = 30; // 30 seconds timeout
                     using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
                     {
                         conn.Open();
@@ -43,6 +56,10 @@ public class DBHelper
                     }
                 }
             }
+        }
+        catch (SqlException ex)
+        {
+            throw new Exception("Database error executing query: " + ex.Message);
         }
         catch (Exception ex)
         {
@@ -68,6 +85,8 @@ public class DBHelper
             {
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
+                    cmd.CommandTimeout = 30; // 30 seconds timeout
+                    
                     if (parameters != null)
                     {
                         cmd.Parameters.AddRange(parameters);
@@ -80,6 +99,10 @@ public class DBHelper
                     }
                 }
             }
+        }
+        catch (SqlException ex)
+        {
+            throw new Exception("Database error executing query: " + ex.Message);
         }
         catch (Exception ex)
         {
@@ -104,10 +127,15 @@ public class DBHelper
             {
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
+                    cmd.CommandTimeout = 30; // 30 seconds timeout
                     conn.Open();
                     rowsAffected = cmd.ExecuteNonQuery();
                 }
             }
+        }
+        catch (SqlException ex)
+        {
+            throw new Exception("Database error executing non-query: " + ex.Message);
         }
         catch (Exception ex)
         {
@@ -133,6 +161,8 @@ public class DBHelper
             {
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
+                    cmd.CommandTimeout = 30; // 30 seconds timeout
+                    
                     if (parameters != null)
                     {
                         cmd.Parameters.AddRange(parameters);
@@ -142,6 +172,10 @@ public class DBHelper
                     rowsAffected = cmd.ExecuteNonQuery();
                 }
             }
+        }
+        catch (SqlException ex)
+        {
+            throw new Exception("Database error executing non-query: " + ex.Message);
         }
         catch (Exception ex)
         {
@@ -166,10 +200,15 @@ public class DBHelper
             {
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
+                    cmd.CommandTimeout = 30; // 30 seconds timeout
                     conn.Open();
                     result = cmd.ExecuteScalar();
                 }
             }
+        }
+        catch (SqlException ex)
+        {
+            throw new Exception("Database error executing scalar query: " + ex.Message);
         }
         catch (Exception ex)
         {
@@ -195,6 +234,8 @@ public class DBHelper
             {
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
+                    cmd.CommandTimeout = 30; // 30 seconds timeout
+                    
                     if (parameters != null)
                     {
                         cmd.Parameters.AddRange(parameters);
@@ -204,6 +245,10 @@ public class DBHelper
                     result = cmd.ExecuteScalar();
                 }
             }
+        }
+        catch (SqlException ex)
+        {
+            throw new Exception("Database error executing scalar query: " + ex.Message);
         }
         catch (Exception ex)
         {
@@ -235,51 +280,164 @@ public class DBHelper
 
     /// <summary>
     /// Get DataReader for efficient data reading
+    /// NOTE: Caller is responsible for closing the connection
     /// </summary>
     /// <param name="query">SQL query</param>
     /// <returns>SqlDataReader</returns>
     public static SqlDataReader ExecuteReader(string query)
     {
-        SqlConnection conn = GetConnection();
-        SqlCommand cmd = new SqlCommand(query, conn);
+        SqlConnection conn = null;
+        SqlDataReader reader = null;
         
         try
         {
+            conn = GetConnection();
+            SqlCommand cmd = new SqlCommand(query, conn);
+            cmd.CommandTimeout = 30; // 30 seconds timeout
+            
             conn.Open();
-            return cmd.ExecuteReader(CommandBehavior.CloseConnection);
+            // CommandBehavior.CloseConnection ensures connection closes when reader is closed
+            reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+            return reader;
         }
         catch (Exception ex)
         {
-            conn.Close();
+            // Clean up connection if reader creation fails
+            if (conn != null && conn.State == ConnectionState.Open)
+            {
+                conn.Close();
+            }
             throw new Exception("Error executing reader: " + ex.Message);
         }
     }
 
     /// <summary>
-    /// Get DataReader with parameters
+    /// Get DataReader with parameters for efficient data reading
+    /// NOTE: Caller is responsible for closing the connection
     /// </summary>
     /// <param name="query">SQL query with parameters</param>
     /// <param name="parameters">SQL parameters</param>
     /// <returns>SqlDataReader</returns>
     public static SqlDataReader ExecuteReader(string query, SqlParameter[] parameters)
     {
-        SqlConnection conn = GetConnection();
-        SqlCommand cmd = new SqlCommand(query, conn);
-
-        if (parameters != null)
-        {
-            cmd.Parameters.AddRange(parameters);
-        }
-
+        SqlConnection conn = null;
+        SqlDataReader reader = null;
+        
         try
         {
+            conn = GetConnection();
+            SqlCommand cmd = new SqlCommand(query, conn);
+            cmd.CommandTimeout = 30; // 30 seconds timeout
+            
+            if (parameters != null)
+            {
+                cmd.Parameters.AddRange(parameters);
+            }
+            
             conn.Open();
-            return cmd.ExecuteReader(CommandBehavior.CloseConnection);
+            // CommandBehavior.CloseConnection ensures connection closes when reader is closed
+            reader = cmd.ExecuteReader(CommandBehavior.CloseConnection);
+            return reader;
         }
         catch (Exception ex)
         {
-            conn.Close();
+            // Clean up connection if reader creation fails
+            if (conn != null && conn.State == ConnectionState.Open)
+            {
+                conn.Close();
+            }
             throw new Exception("Error executing reader: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Execute stored procedure with parameters
+    /// </summary>
+    /// <param name="procedureName">Stored procedure name</param>
+    /// <param name="parameters">SQL parameters</param>
+    /// <returns>DataTable with results</returns>
+    public static DataTable ExecuteStoredProcedure(string procedureName, SqlParameter[] parameters = null)
+    {
+        DataTable dt = new DataTable();
+
+        try
+        {
+            using (SqlConnection conn = GetConnection())
+            {
+                using (SqlCommand cmd = new SqlCommand(procedureName, conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.CommandTimeout = 30; // 30 seconds timeout
+                    
+                    if (parameters != null)
+                    {
+                        cmd.Parameters.AddRange(parameters);
+                    }
+
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                    {
+                        conn.Open();
+                        adapter.Fill(dt);
+                    }
+                }
+            }
+        }
+        catch (SqlException ex)
+        {
+            throw new Exception("Database error executing stored procedure: " + ex.Message);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error executing stored procedure: " + ex.Message);
+        }
+
+        return dt;
+    }
+
+    /// <summary>
+    /// Begin a database transaction
+    /// </summary>
+    /// <returns>SqlTransaction object</returns>
+    public static SqlTransaction BeginTransaction(out SqlConnection connection)
+    {
+        try
+        {
+            connection = GetConnection();
+            connection.Open();
+            return connection.BeginTransaction();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error beginning transaction: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Execute query within a transaction
+    /// </summary>
+    /// <param name="query">SQL query</param>
+    /// <param name="transaction">Active transaction</param>
+    /// <param name="parameters">SQL parameters</param>
+    /// <returns>Number of rows affected</returns>
+    public static int ExecuteNonQueryTransaction(string query, SqlTransaction transaction, SqlParameter[] parameters = null)
+    {
+        try
+        {
+            using (SqlCommand cmd = new SqlCommand(query, transaction.Connection, transaction))
+            {
+                cmd.CommandTimeout = 30; // 30 seconds timeout
+                
+                if (parameters != null)
+                {
+                    cmd.Parameters.AddRange(parameters);
+                }
+
+                return cmd.ExecuteNonQuery();
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error executing transaction query: " + ex.Message);
         }
     }
 }
