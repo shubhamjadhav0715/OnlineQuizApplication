@@ -1,4 +1,4 @@
-<%@ Page Title="Quiz History" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeFile="History.aspx.cs" Inherits="User_History" %>
+<%@ Page Title="Quiz History" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="History.aspx.cs" Inherits="User_History" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 </asp:Content>
@@ -45,8 +45,8 @@
                     <a href="Quiz.aspx" class="btn btn-primary">
                         <i class="fas fa-plus-circle"></i> Take New Quiz
                     </a>
-                    <a href="../Default.aspx" class="btn btn-secondary ml-2">
-                        <i class="fas fa-home"></i> Go to Home
+                    <a href="Dashboard.aspx" class="btn btn-secondary ml-2">
+                        <i class="fas fa-home"></i> Dashboard
                     </a>
                 </div>
             </asp:Panel>
