@@ -39,7 +39,7 @@
 
 body {
     font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     background-attachment: fixed;
     min-height: 100vh;
     display: flex;
@@ -61,6 +61,94 @@ html {
 ::selection {
     background: var(--primary-color);
     color: white;
+}
+
+/* ===================================
+   AUTHENTICATION PAGES - Login & Register
+   =================================== */
+.auth-container {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.auth-card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-xl);
+    padding: 3rem;
+    max-width: 500px;
+    width: 100%;
+    animation: fadeInUp 0.6s ease;
+}
+
+.auth-card h2 {
+    text-align: center;
+    margin-bottom: 2rem;
+    color: var(--dark-color);
+    font-weight: 700;
+    font-size: 2rem;
+}
+
+.auth-card h2 i {
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-right: 10px;
+}
+
+.auth-card .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.auth-card .form-group label i {
+    margin-right: 8px;
+    color: var(--primary-color);
+}
+
+.auth-card .btn-block {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.auth-card .text-center {
+    margin-top: 1.5rem;
+}
+
+.auth-card .text-center a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.auth-card .text-center a:hover {
+    color: var(--secondary-color);
+    text-decoration: underline;
+}
+
+.auth-card hr {
+    margin: 2rem 0;
+    border-top: 2px solid #e2e8f0;
+}
+
+.auth-card .card {
+    margin-bottom: 1rem;
+}
+
+.auth-card .card-body {
+    padding: 1rem;
+}
+
+.auth-card .card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--primary-color);
 }
 
 /* ===================================
@@ -299,14 +387,17 @@ html {
 
 .btn-primary {
     background: var(--primary-gradient);
+    color: white;
 }
 
 .btn-success {
     background: var(--success-gradient);
+    color: white;
 }
 
 .btn-danger {
     background: var(--danger-gradient);
+    color: white;
 }
 
 .btn-warning {
@@ -316,6 +407,7 @@ html {
 
 .btn-info {
     background: var(--info-gradient);
+    color: white;
 }
 
 .btn-light {
@@ -344,6 +436,11 @@ html {
     margin-right: 8px;
 }
 
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
 /* ===================================
    FORMS - Clean & Modern
    =================================== */
@@ -360,6 +457,7 @@ html {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
     background: white;
+    outline: none;
 }
 
 .form-group {
@@ -371,8 +469,6 @@ html {
     color: var(--dark-color);
     margin-bottom: 0.5rem;
     font-size: 0.95rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 /* ===================================
@@ -385,6 +481,7 @@ html {
     padding: 1rem 1.5rem;
     font-weight: 500;
     animation: slideInRight 0.5s ease;
+    margin-bottom: 1.5rem;
 }
 
 @keyframes slideInRight {
@@ -570,6 +667,8 @@ html {
     padding: 2.5rem;
     box-shadow: var(--shadow-lg);
     animation: fadeIn 0.5s ease;
+    margin: 2rem auto;
+    max-width: 900px;
 }
 
 @keyframes fadeIn {
@@ -650,6 +749,8 @@ html {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-lg);
     animation: zoomIn 0.5s ease;
+    margin: 2rem auto;
+    max-width: 800px;
 }
 
 @keyframes zoomIn {
@@ -754,14 +855,17 @@ html {
 
 .badge-primary {
     background: var(--primary-gradient);
+    color: white;
 }
 
 .badge-success {
     background: var(--success-gradient);
+    color: white;
 }
 
 .badge-danger {
     background: var(--danger-gradient);
+    color: white;
 }
 
 .badge-warning {
@@ -771,6 +875,7 @@ html {
 
 .badge-info {
     background: var(--info-gradient);
+    color: white;
 }
 
 /* ===================================
@@ -798,6 +903,17 @@ html {
 }
 
 /* ===================================
+   CONTENT WRAPPER
+   =================================== */
+.content-wrapper {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin: 2rem auto;
+    box-shadow: var(--shadow-lg);
+}
+
+/* ===================================
    RESPONSIVE DESIGN
    =================================== */
 @media (max-width: 768px) {
@@ -820,6 +936,10 @@ html {
     .feature-box {
         margin-bottom: 1.5rem;
     }
+    
+    .auth-card {
+        padding: 2rem;
+    }
 }
 
 @media (max-width: 576px) {
@@ -839,6 +959,14 @@ html {
     .quiz-container {
         padding: 1.5rem;
     }
+    
+    .auth-card {
+        padding: 1.5rem;
+    }
+    
+    .auth-card h2 {
+        font-size: 1.5rem;
+    }
 }
 
 /* ===================================
@@ -856,6 +984,16 @@ html {
 
 .rounded-custom {
     border-radius: var(--border-radius);
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-danger {
+    color: var(--danger-color);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
 }
 
 /* ===================================
