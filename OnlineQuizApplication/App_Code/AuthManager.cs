@@ -11,12 +11,94 @@ using System.Web;
 /// </summary>
 public class AuthManager
 {
+    // PBKDF2 configuration for secure password hashing
+    private const int SaltSize = 16; // 128 bits
+    private const int HashSize = 20; // 160 bits
+    private const int Iterations = 10000; // PBKDF2 iterations
+
     /// <summary>
-    /// Hash password using SHA256
+    /// Hash password using PBKDF2 with salt (secure method)
     /// </summary>
     /// <param name="password">Plain text password</param>
-    /// <returns>Hashed password</returns>
+    /// <returns>Hashed password with salt (format: iterations:salt:hash)</returns>
     public static string HashPassword(string password)
+    {
+        // Generate random salt
+        byte[] salt;
+        new RNGCryptoServiceProvider().GetBytes(salt = new byte[SaltSize]);
+
+        // Hash password with salt using PBKDF2
+        var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations);
+        byte[] hash = pbkdf2.GetBytes(HashSize);
+
+        // Combine salt and hash
+        byte[] hashBytes = new byte[SaltSize + HashSize];
+        Array.Copy(salt, 0, hashBytes, 0, SaltSize);
+        Array.Copy(hash, 0, hashBytes, SaltSize, HashSize);
+
+        // Convert to base64 string with iterations prefix
+        string base64Hash = Convert.ToBase64String(hashBytes);
+        return $"{Iterations}:{base64Hash}";
+    }
+
+    /// <summary>
+    /// Verify password against stored hash
+    /// </summary>
+    /// <param name="password">Plain text password to verify</param>
+    /// <param name="hashedPassword">Stored hashed password</param>
+    /// <returns>True if password matches</returns>
+    public static bool VerifyPassword(string password, string hashedPassword)
+    {
+        try
+        {
+            // Check if it's old SHA256 hash (for backward compatibility)
+            if (!hashedPassword.Contains(":"))
+            {
+                // Old SHA256 hash - verify using old method
+                return hashedPassword == HashPasswordSHA256(password);
+            }
+
+            // Extract iteration count and base64 hash
+            string[] parts = hashedPassword.Split(':');
+            int iterations = int.Parse(parts[0]);
+            string base64Hash = parts[1];
+
+            // Get hash bytes
+            byte[] hashBytes = Convert.FromBase64String(base64Hash);
+
+            // Extract salt
+            byte[] salt = new byte[SaltSize];
+            Array.Copy(hashBytes, 0, salt, 0, SaltSize);
+
+            // Compute hash of provided password
+            var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations);
+            byte[] hash = pbkdf2.GetBytes(HashSize);
+
+            // Compare hashes
+            for (int i = 0; i < HashSize; i++)
+            {
+                if (hashBytes[i + SaltSize] != hash[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Legacy SHA256 hash method (for backward compatibility only)
+    /// DO NOT USE for new passwords - use HashPassword() instead
+    /// </summary>
+    /// <param name="password">Plain text password</param>
+    /// <returns>SHA256 hashed password</returns>
+    [Obsolete("Use HashPassword() instead for better security")]
+    private static string HashPasswordSHA256(string password)
     {
         using (SHA256 sha256 = SHA256.Create())
         {
@@ -42,19 +124,22 @@ public class AuthManager
     {
         try
         {
-            string hashedPassword = HashPassword(password);
-            
-            string query = "SELECT COUNT(*) FROM Users WHERE Email = @Email AND Password = @Password";
+            string query = "SELECT Password FROM Users WHERE Email = @Email";
             
             SqlParameter[] parameters = new SqlParameter[]
             {
-                new SqlParameter("@Email", email),
-                new SqlParameter("@Password", hashedPassword)
+                new SqlParameter("@Email", email)
             };
 
-            int count = Convert.ToInt32(DBHelper.ExecuteScalar(query, parameters));
+            object result = DBHelper.ExecuteScalar(query, parameters);
             
-            return count > 0;
+            if (result != null)
+            {
+                string storedHash = result.ToString();
+                return VerifyPassword(password, storedHash);
+            }
+            
+            return false;
         }
         catch (Exception ex)
         {
@@ -174,6 +259,7 @@ public class AuthManager
                 HttpContext.Current.Session["UserEmail"] = user["Email"].ToString();
                 HttpContext.Current.Session["UserRole"] = user["Role"].ToString();
                 HttpContext.Current.Session["IsLoggedIn"] = true;
+                HttpContext.Current.Session["LoginTime"] = DateTime.Now;
             }
         }
         catch (Exception ex)
@@ -259,7 +345,7 @@ public class AuthManager
     }
 
     /// <summary>
-    /// Logout user and clear session
+    /// Logout current user
     /// </summary>
     public static void Logout()
     {
@@ -268,7 +354,7 @@ public class AuthManager
     }
 
     /// <summary>
-    /// Require login - redirect to login page if not logged in
+    /// Require user to be logged in (redirect to login if not)
     /// </summary>
     public static void RequireLogin()
     {
@@ -279,7 +365,7 @@ public class AuthManager
     }
 
     /// <summary>
-    /// Require admin - redirect to login if not admin
+    /// Require admin access (redirect if not admin)
     /// </summary>
     public static void RequireAdmin()
     {
@@ -294,32 +380,34 @@ public class AuthManager
     }
 
     /// <summary>
-    /// Change user password
+    /// Check if session has expired (20 minutes of inactivity)
     /// </summary>
-    /// <param name="userID">User ID</param>
-    /// <param name="newPassword">New password</param>
-    /// <returns>True if password changed successfully</returns>
-    public static bool ChangePassword(int userID, string newPassword)
+    /// <returns>True if session expired</returns>
+    public static bool IsSessionExpired()
     {
-        try
+        if (HttpContext.Current.Session["LoginTime"] != null)
         {
-            string hashedPassword = HashPassword(newPassword);
+            DateTime loginTime = (DateTime)HttpContext.Current.Session["LoginTime"];
+            TimeSpan elapsed = DateTime.Now - loginTime;
             
-            string query = "UPDATE Users SET Password = @Password WHERE UserID = @UserID";
-            
-            SqlParameter[] parameters = new SqlParameter[]
+            // Session timeout: 20 minutes
+            if (elapsed.TotalMinutes > 20)
             {
-                new SqlParameter("@Password", hashedPassword),
-                new SqlParameter("@UserID", userID)
-            };
-
-            int rowsAffected = DBHelper.ExecuteNonQuery(query, parameters);
-            
-            return rowsAffected > 0;
+                Logout();
+                return true;
+            }
         }
-        catch (Exception ex)
+        return false;
+    }
+
+    /// <summary>
+    /// Refresh session timeout
+    /// </summary>
+    public static void RefreshSession()
+    {
+        if (IsLoggedIn())
         {
-            throw new Exception("Password change error: " + ex.Message);
+            HttpContext.Current.Session["LoginTime"] = DateTime.Now;
         }
     }
 }
